@@ -14,6 +14,7 @@ import { handleUniversalProxy } from "./handlers/proxy.ts";
 import { handleHealth, handleOpenApi } from "./handlers/health.ts";
 import { renderDashboardHtml } from "./ui/dashboard.ts";
 import { prewarmEngine } from "./core/prewarm.ts";
+import { edgeCompressor } from "./core/compression.ts";
 
 // Initialize async edge dependencies (Deno KV & background cron)
 await Promise.all([
@@ -147,12 +148,12 @@ export async function handler(req: Request): Promise<Response> {
     // Apply global CORS & telemetry headers
     response.headers.set("Access-Control-Allow-Origin", "*");
     response.headers.set("x-glastor-request-id", requestId);
-    return response;
+    return edgeCompressor.compress(req, response);
   } catch (err) {
     if (err instanceof GlastorError) {
       const res = err.toResponse();
       res.headers.set("Access-Control-Allow-Origin", "*");
-      return res;
+      return edgeCompressor.compress(req, res);
     }
 
     const internalErr = GlastorError.internal(
@@ -162,7 +163,7 @@ export async function handler(req: Request): Promise<Response> {
     );
     const res = internalErr.toResponse();
     res.headers.set("Access-Control-Allow-Origin", "*");
-    return res;
+    return edgeCompressor.compress(req, res);
   }
 }
 

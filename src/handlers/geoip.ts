@@ -5,18 +5,22 @@
 
 import { apilayerClient } from "../services/apilayer_client.ts";
 import { GlastorError } from "../core/errors.ts";
+import { GeoIpLookupSchema, validateInput } from "../core/validation.ts";
 
 export async function handleGeoIp(req: Request, url: URL, requestId: string): Promise<Response> {
   const pathname = url.pathname;
 
   if (pathname === "/v1/ip-geo/lookup" || pathname === "/v1/ip-geo") {
     // If no IP is passed in query, attempt to detect from client request headers
-    let ip = url.searchParams.get("ip");
-    if (!ip) {
-      ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    let rawIp = url.searchParams.get("ip");
+    if (!rawIp) {
+      rawIp = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
         req.headers.get("cf-connecting-ip") ||
         "check";
     }
+
+    const input = validateInput(GeoIpLookupSchema, { ip: rawIp }, requestId);
+    const ip = input.ip || "check";
 
     const res = await apilayerClient.request({
       service: "ip_geolocation",

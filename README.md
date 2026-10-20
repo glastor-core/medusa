@@ -70,8 +70,12 @@ flowchart TB
 
 ## 🌟 Key Features
 
-- **🚀 Single-Flight Request Deduplication**: Prevents "Cache Stampede / Thundering Herd" problems by coalescing simultaneous concurrent requests for the same resource into a single outbound promise to APILayer (`x-glastor-single-flight: COALESCED`).
-- **⏰ Proactive Deno.cron Pre-warming**: Native background serverless cron job that pre-refreshes key currency pairs every 10 minutes, guaranteeing sub-millisecond edge cache hits without cold start latencies.
+- **🚀 Single-Flight Request Deduplication**: Prevents "Cache Stampede / Thundering Herd" problems
+  by coalescing simultaneous concurrent requests for the same resource into a single outbound
+  promise to APILayer (`x-glastor-single-flight: COALESCED`).
+- **⏰ Proactive Deno.cron Pre-warming**: Native background serverless cron job that pre-refreshes
+  key currency pairs every 10 minutes, guaranteeing sub-millisecond edge cache hits without cold
+  start latencies.
 - **⚡ Quota Preservation & Deno KV Caching**: Eliminates redundant calls and saves monthly APILayer
   tier limits by maintaining multi-tiered edge cache (L1 Memory + L2 Deno KV) with dynamic TTL.
 - **🛡️ Stale-While-Revalidate Grace Fallback**: If APILayer experiences downtime or quota

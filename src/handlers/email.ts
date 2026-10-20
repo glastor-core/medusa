@@ -5,6 +5,7 @@
 
 import { apilayerClient } from "../services/apilayer_client.ts";
 import { GlastorError } from "../core/errors.ts";
+import { EmailVerifySchema, validateInput } from "../core/validation.ts";
 
 export async function handleEmailVerify(
   _req: Request,
@@ -14,21 +15,16 @@ export async function handleEmailVerify(
   const pathname = url.pathname;
 
   if (pathname === "/v1/email-verify/check" || pathname === "/v1/email-verify") {
-    const email = url.searchParams.get("email");
-
-    if (!email) {
-      throw GlastorError.badRequest(
-        "Missing email parameter",
-        "The 'email' query parameter is required to verify an address.",
-        "Provide a valid email: /v1/email-verify/check?email=user@example.com",
-        requestId,
-      );
-    }
+    const input = validateInput(
+      EmailVerifySchema,
+      { email: url.searchParams.get("email") },
+      requestId,
+    );
 
     const res = await apilayerClient.request({
       service: "email_verification",
       path: "/email_verification/check",
-      params: { email },
+      params: { email: input.email },
       ttlSeconds: 3600, // 1 hour cache
       requestId,
     });

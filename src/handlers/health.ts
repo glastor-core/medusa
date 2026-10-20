@@ -8,6 +8,7 @@ import { edgeCache } from "../core/cache.ts";
 import { config } from "../config.ts";
 import { singleFlight } from "../core/single_flight.ts";
 import { prewarmEngine } from "../core/prewarm.ts";
+import { edgeCompressor } from "../core/compression.ts";
 
 const processStartTime = Date.now();
 
@@ -20,6 +21,7 @@ export function handleHealth(_req: Request, _url: URL, requestId: string): Respo
   const cacheMetrics = edgeCache.getMetrics();
   const flightMetrics = singleFlight.getMetrics();
   const prewarmMetrics = prewarmEngine.getMetrics();
+  const compressionMetrics = edgeCompressor.getMetrics();
 
   const status = hasOpenBreaker ? "DEGRADED" : "HEALTHY";
 
@@ -39,6 +41,7 @@ export function handleHealth(_req: Request, _url: URL, requestId: string): Respo
     cache: cacheMetrics,
     singleFlight: flightMetrics,
     prewarm: prewarmMetrics,
+    compression: compressionMetrics,
     memory,
     config: {
       rateLimitWindowSeconds: config.rateLimiter.windowSeconds,

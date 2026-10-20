@@ -5,6 +5,7 @@
 
 import { apilayerClient } from "../services/apilayer_client.ts";
 import { GlastorError } from "../core/errors.ts";
+import { CurrencyConvertSchema, CurrencyLatestSchema, validateInput } from "../core/validation.ts";
 
 export async function handleCurrency(
   _req: Request,
@@ -14,23 +15,20 @@ export async function handleCurrency(
   const pathname = url.pathname;
 
   if (pathname === "/v1/currency/convert") {
-    const from = url.searchParams.get("from");
-    const to = url.searchParams.get("to");
-    const amount = url.searchParams.get("amount") || "1";
-
-    if (!from || !to) {
-      throw GlastorError.badRequest(
-        "Missing required query parameters",
-        "Parameters 'from' and 'to' currency codes are required.",
-        "Provide parameters like: /v1/currency/convert?from=USD&to=EUR&amount=100",
-        requestId,
-      );
-    }
+    const input = validateInput(
+      CurrencyConvertSchema,
+      {
+        from: url.searchParams.get("from"),
+        to: url.searchParams.get("to"),
+        amount: url.searchParams.get("amount") || undefined,
+      },
+      requestId,
+    );
 
     const res = await apilayerClient.request({
       service: "currency_convert",
       path: "/exchangerates_data/convert",
-      params: { from: from.toUpperCase(), to: to.toUpperCase(), amount },
+      params: { from: input.from, to: input.to, amount: input.amount },
       ttlSeconds: 600, // 10 minutes cache
       requestId,
     });
@@ -48,13 +46,19 @@ export async function handleCurrency(
   }
 
   if (pathname === "/v1/currency/latest") {
-    const base = url.searchParams.get("base") || "USD";
-    const symbols = url.searchParams.get("symbols") || "";
+    const input = validateInput(
+      CurrencyLatestSchema,
+      {
+        base: url.searchParams.get("base") || undefined,
+        symbols: url.searchParams.get("symbols") || undefined,
+      },
+      requestId,
+    );
 
     const res = await apilayerClient.request({
       service: "currency_latest",
       path: "/exchangerates_data/latest",
-      params: { base: base.toUpperCase(), symbols: symbols.toUpperCase() },
+      params: { base: input.base, symbols: input.symbols },
       ttlSeconds: 900, // 15 minutes cache
       requestId,
     });
