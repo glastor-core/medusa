@@ -1,0 +1,15 @@
+# Environment variables
+.env
+.env.local
+
+# Deno cache and coverage
+.coverage/
+cov_profile/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

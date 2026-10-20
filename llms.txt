@@ -1,0 +1,24 @@
+# GLASTOR® Medusa
+
+> Resilient Edge API Gateway & Caching Proxy for APILayer on Deno Deploy.
+
+## Overview
+GLASTOR Medusa is an edge micro-kernel designed to safely consume APILayer SaaS APIs (Currency, IP Geolocation, Email Verification, and custom proxies) without quota burn, cascade failure, or key leakage.
+
+## Architecture & Standards
+- Runtime: Deno 2.x
+- Deployment Target: Deno Deploy Edge Global Network
+- Storage / State: Deno KV (Atomic sliding window rate limiting + multi-tier response cache)
+- Resilience Patterns: Circuit Breaker (CLOSED/OPEN/HALF_OPEN), Stale-While-Revalidate (SWR), Exponential Backoff with Jitter
+- Observability: Core 4R standard (Reason, Recovery, Remediation, RequestId)
+- Contracts: OpenAPI 3.1 (/openapi.json)
+
+## Key Endpoints
+- GET / : Glassmorphic live testing console and health monitor
+- GET /health : Telemetry, memory, circuit breaker states, and cache stats
+- GET /openapi.json : OpenAPI 3.1 specification
+- GET /v1/currency/convert : Currency conversion with 10-minute resilient caching
+- GET /v1/currency/latest : Real-time exchange rates
+- GET /v1/ip-geo/lookup : IP geolocation with 24-hour resilient caching
+- GET /v1/email-verify/check : Email deliverability and MX validation
+- ALL /v1/proxy/* : Resilient universal proxy to any upstream APILayer endpoint

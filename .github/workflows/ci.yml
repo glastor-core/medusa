@@ -1,0 +1,35 @@
+name: CI Quality Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Lint, Check & Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Verify Formatting
+        run: deno fmt --check
+
+      - name: Lint Codebase
+        run: deno lint
+
+      - name: Type Check
+        run: deno check src/server.ts
+
+      - name: Run Test Suite
+        run: deno test --allow-net --allow-env --unstable-kv tests/
