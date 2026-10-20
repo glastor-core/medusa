@@ -7,6 +7,7 @@ import { config } from "../config.ts";
 import { edgeCache } from "../core/cache.ts";
 import { getCircuitBreaker } from "../core/circuit_breaker.ts";
 import { GlastorError } from "../core/errors.ts";
+import { singleFlight } from "../core/single_flight.ts";
 
 export interface APILayerRequestOptions {
   service: string;
@@ -26,6 +27,7 @@ export interface APILayerResponse<T = unknown> {
   cacheStatus: "HIT" | "STALE" | "MISS";
   ageSeconds: number;
   latencyMs: number;
+  singleFlightShared?: boolean;
 }
 
 export class APILayerClient {
@@ -102,26 +104,25 @@ export class APILayerClient {
       }
       : undefined;
 
-    // 4. Execute via Circuit Breaker with Retry
+    // 4. Execute via Single-Flight & Circuit Breaker with Retry
     try {
-      const data = await breaker.execute(async () => {
-        return await this.fetchWithRetry<T>(options);
-      }, fallback);
+      const flightResult = await singleFlight.do(cacheKey, async () => {
+        return await breaker.execute(async () => {
+          return await this.fetchWithRetry<T>(options);
+        }, fallback);
+      });
 
+      const data = flightResult.data;
+      const shared = flightResult.shared;
       const latencyMs = Math.round(performance.now() - startTime);
 
-      // Save to cache if fresh fetch
+      // Save to cache if fresh fetch (and we were the leader of the flight)
       if (
-        !options.skipCache && (!options.method || options.method === "GET") && data !== staleEntry
+        !options.skipCache && (!options.method || options.method === "GET") &&
+        data !== staleEntry && !shared
       ) {
         const ttl = options.ttlSeconds ?? config.cache.defaultTtlSeconds;
         await edgeCache.set(cacheKey, data, ttl);
-        return {
-          data,
-          cacheStatus: "MISS",
-          ageSeconds: 0,
-          latencyMs,
-        };
       }
 
       return {
@@ -129,6 +130,7 @@ export class APILayerClient {
         cacheStatus: data === staleEntry ? "STALE" : "MISS",
         ageSeconds: data === staleEntry ? staleAge : 0,
         latencyMs,
+        singleFlightShared: shared,
       };
     } catch (err) {
       if (staleEntry) {

@@ -524,6 +524,16 @@ export function renderDashboardHtml(): string {
         <div class="metric-detail">Fail-safe active &middot; 0 Trips</div>
       </div>
       <div class="metric-card">
+        <div class="metric-title">Single-Flight Engine</div>
+        <div class="metric-value" style="color: #f43f5e" id="m-flight">Deduplicating</div>
+        <div class="metric-detail" id="m-flight-detail">0 Stampedes &middot; Coalesced</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Deno.cron Pre-Warm</div>
+        <div class="metric-value" style="color: #eab308" id="m-cron">Active (10m)</div>
+        <div class="metric-detail" id="m-cron-detail">FX Pairs &middot; Sub-ms Ready</div>
+      </div>
+      <div class="metric-card">
         <div class="metric-title">Edge Cache Tier</div>
         <div class="metric-value" style="color: var(--accent-secondary)" id="m-cache">L1/L2 Active</div>
         <div class="metric-detail">Deno KV + In-Memory &middot; SWR Grace</div>
@@ -576,10 +586,11 @@ export function renderDashboardHtml(): string {
 
         <div class="response-header">
           <label>Edge Response</label>
-          <div style="display: flex; gap: 0.4rem;">
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
             <span class="pill pill-status" id="res-status">Status: 200 OK</span>
             <span class="pill pill-cache" id="res-cache">Cache: MISS</span>
             <span class="pill pill-latency" id="res-latency">Latency: -- ms</span>
+            <span class="pill" id="res-flight" style="display:none; background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3);">Flight: COALESCED</span>
           </div>
         </div>
 
@@ -596,6 +607,22 @@ export function renderDashboardHtml(): string {
         </div>
 
         <div class="feature-list">
+          <div class="feature-item">
+            <div class="feature-icon">🚀</div>
+            <div class="feature-text">
+              <h4>Single-Flight Request Deduplication</h4>
+              <p>Eliminates the "Cache Stampede / Thundering Herd" problem. Multiple concurrent requests for the same resource share one single in-flight promise to APILayer.</p>
+            </div>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon">⏰</div>
+            <div class="feature-text">
+              <h4>Proactive Deno.cron Pre-warming</h4>
+              <p>Native background cron jobs refresh key currency pairs every 10 minutes, guaranteeing sub-millisecond edge cache hits without cold start latencies.</p>
+            </div>
+          </div>
+
           <div class="feature-item">
             <div class="feature-icon">🛡️</div>
             <div class="feature-text">
@@ -617,14 +644,6 @@ export function renderDashboardHtml(): string {
             <div class="feature-text">
               <h4>Core 4R Observability</h4>
               <p>Every response and failure follows Glastor's 4R schema: Reason, Recovery, Remediation, and RequestId for trace correlation in distributed architectures.</p>
-            </div>
-          </div>
-
-          <div class="feature-item">
-            <div class="feature-icon">🔒</div>
-            <div class="feature-text">
-              <h4>Perimeter Secret Cloaking</h4>
-              <p>Downstream clients never touch your APILayer API keys. All credentials remain encrypted and injected securely in Deno Deploy's runtime environment.</p>
             </div>
           </div>
         </div>
@@ -660,12 +679,20 @@ export function renderDashboardHtml(): string {
         const elapsed = Math.round(performance.now() - start);
         const cacheHeader = res.headers.get('x-glastor-cache') || 'BYPASS';
         const latencyHeader = res.headers.get('x-glastor-latency-ms') || elapsed;
+        const flightHeader = res.headers.get('x-glastor-single-flight');
 
         resStatus.textContent = 'Status: ' + res.status + ' ' + (res.ok ? 'OK' : 'FAIL');
         resStatus.style.color = res.ok ? 'var(--status-success)' : 'var(--status-danger)';
 
         resCache.textContent = 'Cache: ' + cacheHeader;
         resLatency.textContent = 'Latency: ' + latencyHeader + ' ms';
+
+        const flightPill = document.getElementById('res-flight');
+        if (flightHeader) {
+          flightPill.style.display = 'inline-block';
+        } else {
+          flightPill.style.display = 'none';
+        }
 
         const json = await res.json();
         resOutput.textContent = JSON.stringify(json, null, 2);
@@ -674,16 +701,25 @@ export function renderDashboardHtml(): string {
         resStatus.textContent = 'Error: Network Failure';
         resStatus.style.color = 'var(--status-danger)';
         resLatency.textContent = 'Latency: ' + elapsed + ' ms';
+        document.getElementById('res-flight').style.display = 'none';
         resOutput.textContent = JSON.stringify({ error: String(err) }, null, 2);
       }
     });
 
-    // Auto-fetch health on load
+    // Auto-fetch health on load to populate real-time indicators
     fetch('/health')
       .then(r => r.json())
       .then(data => {
         if (data.status) {
           document.getElementById('health-label').textContent = data.status;
+        }
+        if (data.singleFlight) {
+          document.getElementById('m-flight-detail').textContent = 
+            data.singleFlight.deduplicatedCalls + ' Coalesced / ' + data.singleFlight.totalCalls + ' Total';
+        }
+        if (data.prewarm) {
+          document.getElementById('m-cron-detail').textContent = 
+            data.prewarm.totalRuns + ' Runs &middot; ' + data.prewarm.lastStatus;
         }
       })
       .catch(() => {});

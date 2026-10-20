@@ -6,6 +6,8 @@
 import { circuitBreakerRegistry } from "../core/circuit_breaker.ts";
 import { edgeCache } from "../core/cache.ts";
 import { config } from "../config.ts";
+import { singleFlight } from "../core/single_flight.ts";
+import { prewarmEngine } from "../core/prewarm.ts";
 
 const processStartTime = Date.now();
 
@@ -16,6 +18,8 @@ export function handleHealth(_req: Request, _url: URL, requestId: string): Respo
   const breakersMetrics = Array.from(circuitBreakerRegistry.values()).map((cb) => cb.getMetrics());
   const hasOpenBreaker = breakersMetrics.some((b) => b.state === "OPEN");
   const cacheMetrics = edgeCache.getMetrics();
+  const flightMetrics = singleFlight.getMetrics();
+  const prewarmMetrics = prewarmEngine.getMetrics();
 
   const status = hasOpenBreaker ? "DEGRADED" : "HEALTHY";
 
@@ -33,6 +37,8 @@ export function handleHealth(_req: Request, _url: URL, requestId: string): Respo
     },
     circuitBreakers: breakersMetrics,
     cache: cacheMetrics,
+    singleFlight: flightMetrics,
+    prewarm: prewarmMetrics,
     memory,
     config: {
       rateLimitWindowSeconds: config.rateLimiter.windowSeconds,

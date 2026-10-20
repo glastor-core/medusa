@@ -13,12 +13,14 @@ import { handleEmailVerify } from "./handlers/email.ts";
 import { handleUniversalProxy } from "./handlers/proxy.ts";
 import { handleHealth, handleOpenApi } from "./handlers/health.ts";
 import { renderDashboardHtml } from "./ui/dashboard.ts";
+import { prewarmEngine } from "./core/prewarm.ts";
 
-// Initialize async edge dependencies (Deno KV)
+// Initialize async edge dependencies (Deno KV & background cron)
 await Promise.all([
   rateLimiter.init(),
   edgeCache.init(),
 ]);
+prewarmEngine.init();
 
 export async function handler(req: Request): Promise<Response> {
   const requestId = crypto.randomUUID();

@@ -31,6 +31,7 @@ export async function handleGeoIp(req: Request, url: URL, requestId: string): Pr
       "x-glastor-cache": res.cacheStatus,
       "x-glastor-age": String(res.ageSeconds),
       "x-glastor-latency-ms": String(res.latencyMs),
+      ...(res.singleFlightShared ? { "x-glastor-single-flight": "COALESCED" } : {}),
     });
 
     return new Response(JSON.stringify(res.data, null, 2), { status: 200, headers });
