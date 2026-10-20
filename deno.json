@@ -8,7 +8,9 @@
     "test": "deno test --allow-net --allow-env --unstable-kv tests/",
     "check": "deno check src/server.ts",
     "lint": "deno lint",
-    "fmt": "deno fmt"
+    "fmt": "deno fmt",
+    "doctor": "deno run -A jsr:@glastor-dev/samurai/cli doctor",
+    "standards:update": "deno run -A jsr:@glastor-dev/samurai/cli update --org glastor-core --repo medusa"
   },
   "unstable": [
     "kv"

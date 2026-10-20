@@ -1,0 +1,23 @@
+# ==============================================================================
+# Lefthook Git Hooks Configuration (GitHub 2026 Standard)
+# Enforces Conventional Commits and code quality locally before push
+# Reference: https://github.com/evilmartians/lefthook
+# ==============================================================================
+
+pre-commit:
+  parallel: true
+  commands:
+    quality-check:
+      run: deno fmt --check
+
+commit-msg:
+  commands:
+    conventional-commits:
+      run: |
+        head -n 1 {1} | grep -Eq '^(revert: )?(feat|fix|polish|docs|style|refactor|perf|test|workflow|ci|chore|types)(\([\w.-]+\))?: .{1,50}$' || {
+          echo "❌ [ERROR] Invalid commit message format."
+          echo "   Expected: <type>(<scope>): <subject (max 50 chars)>"
+          echo "   Example:  feat(core): add deterministic schema validator"
+          echo "   See:      .github/COMMIT_CONVENTION.md"
+          exit 1
+        }
