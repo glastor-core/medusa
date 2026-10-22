@@ -158,17 +158,18 @@ export class GlastorError extends Error {
   }
 
   static internal(message: string, error?: unknown, requestId?: string): GlastorError {
+    const isDev = (Deno.env.get("ENV") || "").toLowerCase() === "development";
     return new GlastorError({
       code: "GLASTOR_INTERNAL_ERROR",
       statusCode: 500,
       message,
-      reason: error instanceof Error
+      reason: isDev && error instanceof Error
         ? error.message
-        : "Unexpected internal gateway execution error.",
+        : "An internal server error occurred while processing the request.",
       recovery: "Error captured by global edge panic handler.",
       remediation: "Inspect application telemetry or file an issue on GitHub.",
       requestId,
-      details: error instanceof Error ? { stack: error.stack } : error,
+      details: isDev && error instanceof Error ? { stack: error.stack } : undefined,
     });
   }
 }

@@ -30,7 +30,9 @@ export async function handleUniversalProxy(
 
   const params: Record<string, string> = {};
   for (const [k, v] of url.searchParams.entries()) {
-    params[k] = v;
+    if (!/^(apikey|access_key)$/i.test(k)) {
+      params[k] = v;
+    }
   }
 
   // Optional custom TTL header from client

@@ -167,6 +167,7 @@ export class APILayerClient {
     const query = new URLSearchParams();
     if (options.params) {
       for (const [k, v] of Object.entries(options.params)) {
+        if (/^(apikey|access_key)$/i.test(k)) continue; // Prevent client tampering or leaking apikey
         if (v !== undefined && v !== "") {
           query.set(k, String(v));
         }
@@ -178,8 +179,16 @@ export class APILayerClient {
     const url = `${this.baseUrl}${cleanPath}${queryString ? `?${queryString}` : ""}`;
 
     const headers = new Headers(options.headers);
+    headers.delete("apikey"); // Never forward client-supplied apikey
     headers.set("apikey", this.apiKey);
-    headers.set("User-Agent", "Glastor-Medusa-Gateway/0.1.0 (Deno Deploy)");
+    headers.set("User-Agent", "Glastor-Medusa-Gateway/0.2.0 (Deno Deploy)");
+
+    const sanitizeUpstreamText = (text: string): string => {
+      if (this.apiKey && this.apiKey.length > 5 && text.includes(this.apiKey)) {
+        return text.replaceAll(this.apiKey, "[REDACTED]");
+      }
+      return text;
+    };
 
     let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -197,7 +206,8 @@ export class APILayerClient {
         clearTimeout(timeoutId);
 
         if (!res.ok) {
-          const errorText = await res.text().catch(() => "Unknown upstream error");
+          const rawText = await res.text().catch(() => "Unknown upstream error");
+          const errorText = sanitizeUpstreamText(rawText);
           // Non-retryable client errors (400, 401, 403, 404)
           if (res.status >= 400 && res.status < 500) {
             throw new GlastorError({

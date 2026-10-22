@@ -36,6 +36,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and
 - **End-to-End HTTP Integration Test Suite**: Implemented `tests/server_e2e_test.ts` validating CORS
   preflight, probe routing, error formatting, and HTML dashboard rendering.
 
+### Security
+
+- **Stack Trace & CWE-209 Information Shielding**: Restricted internal error details and runtime
+  stack traces in `GlastorError.internal` strictly to development environments.
+- **Automated Secret Redaction in Logger**: Added recursive masking for `apiKey`, `bearer`, `token`,
+  and `password` fields across all log entries.
+- **Upstream Key Leakage Prevention**: Filtered client `apikey` query parameters from `/v1/proxy/*`
+  and sanitized upstream error response bodies to prevent credential reflection.
+- **Hardened Git Exclusions**: Broadened `.gitignore` to reject all environment variants,
+  certificates, private keys, and credential stores.
+
 ---
 
 ## [0.1.0] - 2026-10-22
