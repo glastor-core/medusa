@@ -1,7 +1,9 @@
 /**
  * GLASTOR® Medusa - Edge Distributed Rate Limiter
- * Utilizes Deno KV globally distributed atomic operations with memory fallback.
+ * Utilizes Deno KV globally distributed atomic operations with micro-retries and memory fallback.
  */
+
+import { logger } from "./logger.ts";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -27,7 +29,7 @@ export class RateLimiter {
         this.kv = await Deno.openKv();
       }
     } catch (err) {
-      console.warn("[Glastor-RateLimiter] Deno KV unavailable, using memory store:", err);
+      logger.warn("[Glastor-RateLimiter] Deno KV unavailable, using memory store", {}, err);
       this.kv = null;
     }
   }
@@ -42,36 +44,48 @@ export class RateLimiter {
     const resetSeconds = (windowKey + 1) * windowSeconds - now;
 
     if (this.kv) {
-      try {
-        const key = ["glastor", "ratelimit", identifier, windowKey];
-        const res = await this.kv.get<number>(key);
-        const currentCount = res.value ?? 0;
+      for (let attempt = 0; attempt <= 2; attempt++) {
+        try {
+          const key = ["glastor", "ratelimit", identifier, windowKey];
+          const res = await this.kv.get<number>(key);
+          const currentCount = res.value ?? 0;
 
-        if (currentCount >= maxRequests) {
-          return {
-            allowed: false,
-            limit: maxRequests,
-            remaining: 0,
-            resetSeconds,
-          };
+          if (currentCount >= maxRequests) {
+            return {
+              allowed: false,
+              limit: maxRequests,
+              remaining: 0,
+              resetSeconds,
+            };
+          }
+
+          // Atomic commit or increment with optimistic check
+          const atomic = this.kv.atomic();
+          atomic.check(res);
+          atomic.set(key, currentCount + 1, { expireIn: windowSeconds * 1000 });
+          const commitRes = await atomic.commit();
+
+          if (commitRes.ok) {
+            return {
+              allowed: true,
+              limit: maxRequests,
+              remaining: Math.max(0, maxRequests - (currentCount + 1)),
+              resetSeconds,
+            };
+          }
+
+          // If commit conflict occurred, micro-jitter and retry
+          if (attempt < 2) {
+            await new Promise((resolve) => setTimeout(resolve, Math.random() * 3 + 1));
+          }
+        } catch (err) {
+          logger.warn(
+            "[Glastor-RateLimiter] KV transaction failed, falling back to memory",
+            {},
+            err,
+          );
+          break;
         }
-
-        // Atomic commit or increment
-        const atomic = this.kv.atomic();
-        atomic.check(res);
-        atomic.set(key, currentCount + 1, { expireIn: windowSeconds * 1000 });
-        const commitRes = await atomic.commit();
-
-        if (commitRes.ok) {
-          return {
-            allowed: true,
-            limit: maxRequests,
-            remaining: Math.max(0, maxRequests - (currentCount + 1)),
-            resetSeconds,
-          };
-        }
-      } catch (err) {
-        console.warn("[Glastor-RateLimiter] KV transaction failed, falling back to memory:", err);
       }
     }
 

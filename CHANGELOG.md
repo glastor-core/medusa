@@ -10,14 +10,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and
 
 ## [Unreleased]
 
-### Planned Improvements
+---
 
-- **LRU Memory Eviction**: Cap L1 cache map to prevent memory growth under heavy traffic spikes.
-- **Probe Separation**: Distinguish `/livez` (process liveness, always 200) from `/readyz`
-  (dependency readiness).
-- **HTTP Integration Tests**: End-to-end tests for `src/server.ts` routing, CORS preflight, and
-  middleware pipeline.
-- **OpenTelemetry & Structured Logging**: Standard JSON telemetry logging with trace context.
+## [0.2.0] - 2026-10-22
+
+### Added
+
+- **Structured Edge Logger**: High-performance JSON logger (`src/core/logger.ts`) with trace
+  correlation (`requestId`, `service`, `latencyMs`), ISO-8601 timestamps, and log level filtering
+  (`DEBUG`, `INFO`, `WARN`, `ERROR`).
+- **Bounded LRU Cache Eviction**: Integrated bounded LRU eviction in L1 memory cache
+  (`EdgeCache.setL1Entry`) with configurable `maxL1Entries` (default 1,000) and `evictions`
+  telemetry to eliminate unbounded memory growth in edge isolates.
+- **Orchestration Probes Separation**:
+  - Implemented `/livez` liveness probe returning strictly HTTP 200 OK while the event loop is
+    active, eliminating container crash loops in Kubernetes and Cloud Run.
+  - Implemented `/readyz` readiness probe evaluating circuit breaker health and dependency readiness
+    (HTTP 200 or 503).
+- **Atomic RateLimiter Retries**: Added optimistic lock retry loop with micro-jitter (1-3ms) on Deno
+  KV atomic transaction conflicts to maintain cross-edge rate limit consistency under heavy
+  concurrent traffic.
+- **Enhanced OpenAPI 3.1 Contract**: Extended `/openapi.json` with security schemes (`MedusaApiKey`,
+  `BearerAuth`), probes (`/livez`, `/readyz`), error schemas (`GlastorError4R`), and full route
+  coverage.
+- **End-to-End HTTP Integration Test Suite**: Implemented `tests/server_e2e_test.ts` validating CORS
+  preflight, probe routing, error formatting, and HTML dashboard rendering.
 
 ---
 
@@ -59,5 +76,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and
   [SECURITY.md](SECURITY.md).
 - Automated SAST analysis via GitHub CodeQL and OSSF Scorecard in CI/CD pipeline.
 
-[Unreleased]: https://github.com/glastor-core/medusa/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/glastor-core/medusa/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/glastor-core/medusa/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/glastor-core/medusa/releases/tag/v0.1.0

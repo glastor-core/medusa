@@ -1,6 +1,6 @@
 {
   "name": "@glastor-core/medusa",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "exports": "./src/server.ts",
   "tasks": {
     "dev": "deno run --allow-net --allow-env --allow-read --unstable-kv --watch src/server.ts",

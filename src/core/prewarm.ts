@@ -5,6 +5,7 @@
 
 import { apilayerClient } from "../services/apilayer_client.ts";
 import { config } from "../config.ts";
+import { logger } from "./logger.ts";
 
 export interface PrewarmMetrics {
   enabled: boolean;
@@ -33,14 +34,14 @@ export class PrewarmEngine {
     }).cron;
 
     if (typeof cronFn === "function" && config.apilayerApiKey) {
-      console.log(
+      logger.info(
         "⚡ [Glastor-Prewarm] Registering Deno.cron schedule: '*/10 * * * *' (Every 10 minutes)",
       );
       cronFn("Medusa Cache Prewarm", "*/10 * * * *", async () => {
         await this.runNow();
       });
     } else {
-      console.log(
+      logger.debug(
         "⚡ [Glastor-Prewarm] Background pre-warming engine initialized (on-demand or cron ready)",
       );
     }
@@ -48,7 +49,7 @@ export class PrewarmEngine {
 
   async runNow(): Promise<boolean> {
     if (this.isRunning) {
-      console.warn("[Glastor-Prewarm] Prewarm cycle already running, skipping overlapping run.");
+      logger.warn("[Glastor-Prewarm] Prewarm cycle already running, skipping overlapping run.");
       return false;
     }
 
@@ -59,7 +60,7 @@ export class PrewarmEngine {
 
     this.isRunning = true;
     const start = performance.now();
-    console.log("⚡ [Glastor-Prewarm] Starting background cache pre-warm cycle...");
+    logger.info("⚡ [Glastor-Prewarm] Starting background cache pre-warm cycle...");
 
     try {
       // 1. Prewarm USD exchange rates
@@ -86,13 +87,15 @@ export class PrewarmEngine {
       this.totalRuns++;
       this.lastRunTime = Date.now();
       this.lastDurationMs = Math.round(performance.now() - start);
-      console.log(`✅ [Glastor-Prewarm] Finished successfully in ${this.lastDurationMs}ms`);
+      logger.info(`✅ [Glastor-Prewarm] Finished successfully in ${this.lastDurationMs}ms`, {
+        durationMs: this.lastDurationMs,
+      });
       return true;
     } catch (err) {
       this.lastStatus = "FAILED";
       this.lastRunTime = Date.now();
       this.lastDurationMs = Math.round(performance.now() - start);
-      console.error("[Glastor-Prewarm] Prewarm run encountered an error:", err);
+      logger.error("[Glastor-Prewarm] Prewarm run encountered an error", {}, err);
       return false;
     } finally {
       this.isRunning = false;

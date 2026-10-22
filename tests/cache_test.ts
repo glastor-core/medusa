@@ -46,3 +46,25 @@ Deno.test("EdgeCache - evaluates STALE within grace period", async () => {
   assertEquals(result.status, "STALE");
   assertEquals(result.entry?.data.value, 42);
 });
+
+Deno.test("EdgeCache - enforces bounded L1 LRU eviction capacity", async () => {
+  // maxL1Entries = 2
+  const cache = new EdgeCache(60, 3600, 2);
+
+  await cache.set("key1", "data1");
+  await cache.set("key2", "data2");
+  assertEquals(cache.getMetrics().l1Size, 2);
+
+  // Access key1 to refresh its LRU position
+  await cache.get("key1");
+
+  // Add key3, should evict key2 (the least recently used)
+  await cache.set("key3", "data3");
+  assertEquals(cache.getMetrics().l1Size, 2);
+  assertEquals(cache.getMetrics().evictions, 1);
+
+  const hit1 = await cache.get("key1");
+  assertEquals(hit1.status, "HIT");
+  const hit3 = await cache.get("key3");
+  assertEquals(hit3.status, "HIT");
+});

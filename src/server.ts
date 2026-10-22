@@ -7,11 +7,12 @@ import { config } from "./config.ts";
 import { rateLimiter } from "./core/rate_limiter.ts";
 import { edgeCache } from "./core/cache.ts";
 import { GlastorError } from "./core/errors.ts";
+import { logger } from "./core/logger.ts";
 import { handleCurrency } from "./handlers/currency.ts";
 import { handleGeoIp } from "./handlers/geoip.ts";
 import { handleEmailVerify } from "./handlers/email.ts";
 import { handleUniversalProxy } from "./handlers/proxy.ts";
-import { handleHealth, handleOpenApi } from "./handlers/health.ts";
+import { handleHealth, handleLiveness, handleOpenApi, handleReadiness } from "./handlers/health.ts";
 import { renderDashboardHtml } from "./ui/dashboard.ts";
 import { prewarmEngine } from "./core/prewarm.ts";
 import { edgeCompressor } from "./core/compression.ts";
@@ -46,9 +47,13 @@ export async function handler(req: Request): Promise<Response> {
     req.headers.get("cf-connecting-ip") ||
     "127.0.0.1";
 
-  // Rate Limiting Check (bypass for /health and /openapi.json)
-  const isExempt = url.pathname === "/health" || url.pathname === "/openapi.json" ||
+  // Rate Limiting Check (bypass for health/readiness/liveness probes and openapi)
+  const isExempt = url.pathname === "/health" ||
+    url.pathname === "/livez" ||
+    url.pathname === "/readyz" ||
+    url.pathname === "/openapi.json" ||
     url.pathname === "/";
+
   if (!isExempt) {
     const rateCheck = await rateLimiter.check(
       clientIp,
@@ -63,6 +68,11 @@ export async function handler(req: Request): Promise<Response> {
       );
       const res = err.toResponse();
       rateLimiter.applyHeaders(res.headers, rateCheck);
+      logger.warn("Rate limit exceeded for client", {
+        requestId,
+        clientIp,
+        limit: rateCheck.limit,
+      });
       return res;
     }
   }
@@ -78,6 +88,7 @@ export async function handler(req: Request): Promise<Response> {
         "Client provided invalid or missing Medusa API key.",
         requestId,
       );
+      logger.warn("Unauthorized request blocked", { requestId, clientIp });
       return err.toResponse();
     }
   }
@@ -101,9 +112,13 @@ export async function handler(req: Request): Promise<Response> {
           JSON.stringify(
             {
               glastor: "Medusa APILayer Gateway",
-              version: "0.1.0",
+              version: "0.2.0",
               documentation: "/openapi.json",
               telemetry: "/health",
+              probes: {
+                liveness: "/livez",
+                readiness: "/readyz",
+              },
               endpoints: [
                 "/v1/currency/convert",
                 "/v1/currency/latest",
@@ -124,7 +139,11 @@ export async function handler(req: Request): Promise<Response> {
           },
         );
       }
-    } else if (url.pathname === "/health" || url.pathname === "/livez") {
+    } else if (url.pathname === "/livez") {
+      response = handleLiveness(req, url, requestId);
+    } else if (url.pathname === "/readyz") {
+      response = handleReadiness(req, url, requestId);
+    } else if (url.pathname === "/health") {
       response = handleHealth(req, url, requestId);
     } else if (url.pathname === "/openapi.json") {
       response = handleOpenApi(url, requestId);
@@ -156,6 +175,7 @@ export async function handler(req: Request): Promise<Response> {
       return edgeCompressor.compress(req, res);
     }
 
+    logger.error("Unexpected edge execution error", { requestId }, err);
     const internalErr = GlastorError.internal(
       "An unexpected edge execution error occurred",
       err,
@@ -169,7 +189,10 @@ export async function handler(req: Request): Promise<Response> {
 
 // Start server when executed directly
 if (import.meta.main) {
-  console.log(`⚡ GLASTOR® Medusa Gateway listening on http://localhost:${config.port}`);
+  logger.info(`⚡ GLASTOR® Medusa Gateway listening on http://localhost:${config.port}`, {
+    port: config.port,
+    env: config.env,
+  });
   Deno.serve({ port: config.port }, handler);
 }
 

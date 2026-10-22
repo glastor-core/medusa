@@ -1,6 +1,6 @@
 /**
  * GLASTOR® Medusa - Health, Telemetry & OpenAPI Contract Handler
- * Exposes edge observability metrics and self-describing system status.
+ * Exposes edge observability metrics, cloud orchestration probes (livez/readyz), and self-describing system status.
  */
 
 import { circuitBreakerRegistry } from "../core/circuit_breaker.ts";
@@ -12,6 +12,63 @@ import { edgeCompressor } from "../core/compression.ts";
 
 const processStartTime = Date.now();
 
+/**
+ * Kubernetes & Cloud Orchestrator Liveness Probe (/livez).
+ * Always returns 200 OK while the event loop and process are alive.
+ * Never returns 503 on upstream failures to prevent cascading container restart loops.
+ */
+export function handleLiveness(_req: Request, _url: URL, requestId: string): Response {
+  const uptimeSeconds = Math.floor((Date.now() - processStartTime) / 1000);
+  const payload = {
+    status: "UP",
+    uptimeSeconds,
+    timestamp: new Date().toISOString(),
+    runtime: "Deno",
+    requestId,
+  };
+
+  return new Response(JSON.stringify(payload, null, 2), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "x-glastor-request-id": requestId,
+      "x-glastor-status": "UP",
+    },
+  });
+}
+
+/**
+ * Kubernetes & Cloud Orchestrator Readiness Probe (/readyz).
+ * Evaluates whether the gateway is ready to receive client traffic.
+ * Returns 503 if critical dependencies or circuit breakers are open.
+ */
+export function handleReadiness(_req: Request, _url: URL, requestId: string): Response {
+  const breakersMetrics = Array.from(circuitBreakerRegistry.values()).map((cb) => cb.getMetrics());
+  const hasOpenBreaker = breakersMetrics.some((b) => b.state === "OPEN");
+  const ready = !hasOpenBreaker;
+  const status = ready ? "READY" : "DEGRADED";
+
+  const payload = {
+    status,
+    ready,
+    timestamp: new Date().toISOString(),
+    openCircuits: breakersMetrics.filter((b) => b.state === "OPEN").map((b) => b.name),
+    requestId,
+  };
+
+  return new Response(JSON.stringify(payload, null, 2), {
+    status: ready ? 200 : 503,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "x-glastor-request-id": requestId,
+      "x-glastor-status": status,
+    },
+  });
+}
+
+/**
+ * Comprehensive Gateway Health & Telemetry Endpoint (/health).
+ */
 export function handleHealth(_req: Request, _url: URL, requestId: string): Response {
   const uptimeSeconds = Math.floor((Date.now() - processStartTime) / 1000);
   const memory = Deno.memoryUsage ? Deno.memoryUsage() : null;
@@ -64,6 +121,9 @@ export function handleHealth(_req: Request, _url: URL, requestId: string): Respo
   });
 }
 
+/**
+ * Self-describing OpenAPI 3.1 Contract (/openapi.json).
+ */
 export function handleOpenApi(url: URL, requestId: string): Response {
   const host = url.origin;
   const spec = {
@@ -85,10 +145,66 @@ export function handleOpenApi(url: URL, requestId: string): Response {
     servers: [
       { url: host, description: "Active Edge Deployment" },
     ],
+    components: {
+      securitySchemes: {
+        MedusaApiKey: {
+          type: "apiKey",
+          in: "header",
+          name: "x-medusa-key",
+          description: "Perimeter gateway access key",
+        },
+        BearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          description: "Alternative standard Authorization Bearer header",
+        },
+      },
+      schemas: {
+        GlastorError4R: {
+          type: "object",
+          required: ["success", "error"],
+          properties: {
+            success: { type: "boolean", example: false },
+            error: {
+              type: "object",
+              required: ["code", "message", "reason", "recovery", "remediation", "requestId"],
+              properties: {
+                code: { type: "string", example: "GLASTOR_SCHEMA_VALIDATION_FAILED" },
+                message: { type: "string", example: "Invalid input parameters" },
+                reason: { type: "string", example: "Field 'from' must be 3 characters" },
+                recovery: { type: "string", example: "Rejected at perimeter" },
+                remediation: { type: "string", example: "Provide a valid ISO currency code" },
+                requestId: { type: "string", example: "3da56128-df5c-4df3-87be-39f6b59a6483" },
+              },
+            },
+          },
+        },
+      },
+    },
     paths: {
+      "/livez": {
+        get: {
+          summary: "Orchestrator Liveness Probe",
+          description: "Returns 200 OK while the event loop and Deno runtime process are alive.",
+          responses: {
+            "200": { description: "Process is running" },
+          },
+        },
+      },
+      "/readyz": {
+        get: {
+          summary: "Orchestrator Readiness Probe",
+          description:
+            "Returns 200 OK when ready to serve traffic, or 503 if circuit breakers are OPEN.",
+          responses: {
+            "200": { description: "Gateway is ready" },
+            "503": { description: "One or more circuit breakers are OPEN" },
+          },
+        },
+      },
       "/health": {
         get: {
-          summary: "Gateway health and telemetry",
+          summary: "Gateway health and comprehensive telemetry",
           responses: {
             "200": { description: "Gateway is fully operational" },
             "503": { description: "One or more circuit breakers are OPEN" },
@@ -110,11 +226,17 @@ export function handleOpenApi(url: URL, requestId: string): Response {
               name: "amount",
               in: "query",
               required: false,
-              schema: { type: "number", example: 100 },
+              schema: { type: "string", example: "100" },
             },
           ],
           responses: {
             "200": { description: "Conversion calculated or retrieved from edge cache" },
+            "400": {
+              description: "Validation failure",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/GlastorError4R" } },
+              },
+            },
             "429": { description: "Rate limit exceeded" },
             "503": { description: "Circuit breaker OPEN" },
           },
@@ -137,6 +259,15 @@ export function handleOpenApi(url: URL, requestId: string): Response {
               schema: { type: "string", example: "EUR,GBP,JPY" },
             },
           ],
+          responses: {
+            "200": { description: "Exchange rates retrieved" },
+            "400": {
+              description: "Validation failure",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/GlastorError4R" } },
+              },
+            },
+          },
         },
       },
       "/v1/ip-geo/lookup": {
@@ -150,6 +281,9 @@ export function handleOpenApi(url: URL, requestId: string): Response {
               schema: { type: "string", example: "8.8.8.8" },
             },
           ],
+          responses: {
+            "200": { description: "IP geolocation data retrieved" },
+          },
         },
       },
       "/v1/email-verify/check": {
@@ -163,11 +297,32 @@ export function handleOpenApi(url: URL, requestId: string): Response {
               schema: { type: "string", example: "test@domain.com" },
             },
           ],
+          responses: {
+            "200": { description: "Email verification results" },
+            "400": {
+              description: "Validation failure",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/GlastorError4R" } },
+              },
+            },
+          },
         },
       },
       "/v1/proxy/{path}": {
         get: {
           summary: "Universal resilient proxy to any APILayer endpoint",
+          parameters: [
+            {
+              name: "path",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "APILayer response cached or fresh" },
+            "502": { description: "Upstream APILayer error" },
+          },
         },
       },
     },

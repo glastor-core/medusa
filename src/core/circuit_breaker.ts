@@ -3,6 +3,8 @@
  * Protects downstream consumers and preserves APILayer monthly quotas during outages.
  */
 
+import { logger } from "./logger.ts";
+
 export type CircuitState = "CLOSED" | "OPEN" | "HALF_OPEN";
 
 export interface CircuitBreakerOptions {
@@ -84,8 +86,9 @@ export class CircuitBreaker {
     }
 
     if (oldState !== newState) {
-      console.warn(
+      logger.warn(
         `[Glastor-CircuitBreaker][${this.name}] State transition: ${oldState} -> ${newState}`,
+        { service: this.name, oldState, newState },
       );
     }
   }

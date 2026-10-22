@@ -8,6 +8,7 @@ import { edgeCache } from "../core/cache.ts";
 import { getCircuitBreaker } from "../core/circuit_breaker.ts";
 import { GlastorError } from "../core/errors.ts";
 import { singleFlight } from "../core/single_flight.ts";
+import { logger } from "../core/logger.ts";
 
 export interface APILayerRequestOptions {
   service: string;
@@ -97,8 +98,9 @@ export class APILayerClient {
     // 3. Fallback definition for Circuit Breaker
     const fallback = staleEntry
       ? (): Promise<T> => {
-        console.warn(
+        logger.warn(
           `[Glastor-Client][${service}] Upstream call failed. Returning STALE cache fallback.`,
+          { service, requestId: options.requestId },
         );
         return Promise.resolve(staleEntry as T);
       }
