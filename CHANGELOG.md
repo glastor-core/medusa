@@ -12,7 +12,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and
 
 ---
 
-## [0.2.0] - 2026-10-22
+## [0.2.1] - 2026-10-24
+
+### Security & Concurrency Hardening
+
+- **Single-Flight Concurrency Isolation**: Restricted Single-Flight coalescing strictly to safe,
+  idempotent requests (`GET`, `HEAD`) in `src/services/apilayer_client.ts`. Mutating requests
+  (`POST`, `PUT`, `DELETE`, `PATCH`) execute directly to prevent cross-client body collision and
+  data leakage.
+- **Strict HTTP Idempotency Retries**: Configured `fetchWithRetry` to disallow automatic 5xx retries
+  for non-idempotent methods (`maxRetries = 0`), adhering to RFC 9110 and eliminating upstream
+  duplicate mutations.
+- **Fail-Closed Production Authentication**: Enforced strict perimeter authentication. In production
+  or when `authRequired` is enabled, a missing `MEDUSA_API_KEY` returns a fatal
+  `500 GLASTOR_GATEWAY_MISCONFIGURATION` rather than leaving routes silently open to anonymous
+  traffic.
+- **Client IP Extraction & Spoofing Defense**: Hardened `extractClientIp` in `src/server.ts` to
+  prioritize `cf-connecting-ip` and `x-real-ip`, and select the rightmost (last hop) IP from
+  `x-forwarded-for` to eliminate rate limit evasion via client-forged headers (CWE-290).
+- **Credential-Aware Rate Quotas**: Enhanced `RateLimiter` identifier resolution to prioritize
+  client API keys (`key:<token>`) over raw IP (`ip:<clientIp>`), preventing abuse through IP
+  rotation.
+- **Protected Telemetry Exposure**: Hardened `/health` endpoint to serve a minimal sanitized status
+  to unauthenticated callers while restricting internal V8 memory, cache metrics, and config
+  thresholds to authorized operators.
+- **Universal Proxy Guardrails**: Added strict HTTP method whitelist (`ALLOWED_PROXY_METHODS`),
+  clamped custom `x-medusa-ttl` to 86,400s (24h max), and enforced a 1MB payload ceiling
+  (`MAX_BODY_SIZE_BYTES`).
+
+### CI/CD & Operations
+
+- **Modern Deno Deploy Automation**: Modernized `.github/workflows/deploy.yml` with
+  `jsr:@deno/deployctl` and updated documentation to `console.deno.com`.
+- **Eliminated Silent Deployment Failures**: Removed `continue-on-error: true` and added pre-deploy
+  quality gates (`deno check`, `deno test`).
+- **Verifiable Dynamic CI Badge**: Replaced static badge in `README.md` with dynamic GitHub Actions
+  workflow status indicator.
+- **Version Alignment**: Synchronized `0.2.0` / `0.2.1` across `deno.json`, `config.ts`,
+  `server.ts`, `/health`, and OpenAPI 3.1 contract.
 
 ### Added
 

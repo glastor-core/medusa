@@ -6,11 +6,25 @@
 import { apilayerClient } from "../services/apilayer_client.ts";
 import { GlastorError } from "../core/errors.ts";
 
+export const ALLOWED_PROXY_METHODS = new Set(["GET", "POST", "PUT", "DELETE", "HEAD", "PATCH"]);
+export const MAX_PROXY_TTL_SECONDS = 86400; // 24 hours max
+export const MAX_BODY_SIZE_BYTES = 1024 * 1024; // 1MB max edge body
+
 export async function handleUniversalProxy(
   req: Request,
   url: URL,
   requestId: string,
 ): Promise<Response> {
+  const method = req.method.toUpperCase();
+  if (!ALLOWED_PROXY_METHODS.has(method)) {
+    throw GlastorError.badRequest(
+      `Unsupported HTTP method '${req.method}'`,
+      `Proxy only supports methods: ${Array.from(ALLOWED_PROXY_METHODS).join(", ")}`,
+      "Use a supported HTTP method.",
+      requestId,
+    );
+  }
+
   // Expected format: /v1/proxy/:upstream_service_or_path/*
   const prefix = "/v1/proxy";
   const upstreamPath = url.pathname.slice(prefix.length);
@@ -35,13 +49,35 @@ export async function handleUniversalProxy(
     }
   }
 
-  // Optional custom TTL header from client
+  // Optional custom TTL header from client (validated and bounded)
   const customTtl = req.headers.get("x-medusa-ttl");
-  const ttlSeconds = customTtl ? parseInt(customTtl, 10) : undefined;
+  let ttlSeconds: number | undefined = undefined;
+  if (customTtl) {
+    const parsed = parseInt(customTtl, 10);
+    if (isNaN(parsed) || parsed < 0) {
+      throw GlastorError.badRequest(
+        "Invalid x-medusa-ttl header",
+        `Received '${customTtl}', expected a positive integer.`,
+        "Provide a valid number of seconds (max 86400).",
+        requestId,
+      );
+    }
+    ttlSeconds = Math.min(parsed, MAX_PROXY_TTL_SECONDS);
+  }
+
   const skipCache = req.headers.get("x-medusa-no-cache") === "true";
 
   let body: unknown = undefined;
-  if (req.method !== "GET" && req.method !== "HEAD") {
+  if (method !== "GET" && method !== "HEAD") {
+    const contentLength = req.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_BODY_SIZE_BYTES) {
+      throw GlastorError.badRequest(
+        "Payload Too Large",
+        `Request body exceeds maximum allowed size of ${MAX_BODY_SIZE_BYTES} bytes.`,
+        "Reduce payload size under 1MB.",
+        requestId,
+      );
+    }
     try {
       body = await req.json();
     } catch {

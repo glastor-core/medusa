@@ -34,6 +34,20 @@ export class RateLimiter {
     }
   }
 
+  isKvAvailable(): boolean {
+    return this.kv !== null;
+  }
+
+  async ping(): Promise<boolean> {
+    if (!this.kv) return false;
+    try {
+      await this.kv.get(["glastor", "health_ping"]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async check(
     identifier: string,
     maxRequests = this.defaultMaxRequests,

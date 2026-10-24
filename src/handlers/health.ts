@@ -5,10 +5,11 @@
 
 import { circuitBreakerRegistry } from "../core/circuit_breaker.ts";
 import { edgeCache } from "../core/cache.ts";
-import { config } from "../config.ts";
+import { config, MEDUSA_VERSION } from "../config.ts";
 import { singleFlight } from "../core/single_flight.ts";
 import { prewarmEngine } from "../core/prewarm.ts";
 import { edgeCompressor } from "../core/compression.ts";
+import { rateLimiter } from "../core/rate_limiter.ts";
 
 const processStartTime = Date.now();
 
@@ -40,19 +41,27 @@ export function handleLiveness(_req: Request, _url: URL, requestId: string): Res
 /**
  * Kubernetes & Cloud Orchestrator Readiness Probe (/readyz).
  * Evaluates whether the gateway is ready to receive client traffic.
+ * Checks circuit breaker health and Deno KV distributed backend availability.
  * Returns 503 if critical dependencies or circuit breakers are open.
  */
-export function handleReadiness(_req: Request, _url: URL, requestId: string): Response {
+export async function handleReadiness(
+  _req: Request,
+  _url: URL,
+  requestId: string,
+): Promise<Response> {
   const breakersMetrics = Array.from(circuitBreakerRegistry.values()).map((cb) => cb.getMetrics());
   const hasOpenBreaker = breakersMetrics.some((b) => b.state === "OPEN");
+  const kvAlive = await rateLimiter.ping();
+
   const ready = !hasOpenBreaker;
-  const status = ready ? "READY" : "DEGRADED";
+  const status = ready ? (kvAlive ? "READY" : "READY_DEGRADED_MEMORY") : "DEGRADED";
 
   const payload = {
     status,
     ready,
     timestamp: new Date().toISOString(),
     openCircuits: breakersMetrics.filter((b) => b.state === "OPEN").map((b) => b.name),
+    kvDistributedBackend: kvAlive ? "CONNECTED" : "IN_MEMORY_FALLBACK",
     requestId,
   };
 
@@ -67,24 +76,56 @@ export function handleReadiness(_req: Request, _url: URL, requestId: string): Re
 }
 
 /**
- * Comprehensive Gateway Health & Telemetry Endpoint (/health).
+ * Gateway Health & Telemetry Endpoint (/health).
+ * Exposes minimal overview to unauthenticated callers and full internal metrics to authorized operators.
  */
-export function handleHealth(_req: Request, _url: URL, requestId: string): Response {
+export function handleHealth(req: Request, _url: URL, requestId: string): Response {
   const uptimeSeconds = Math.floor((Date.now() - processStartTime) / 1000);
-  const memory = Deno.memoryUsage ? Deno.memoryUsage() : null;
-
   const breakersMetrics = Array.from(circuitBreakerRegistry.values()).map((cb) => cb.getMetrics());
   const hasOpenBreaker = breakersMetrics.some((b) => b.state === "OPEN");
+  const status = hasOpenBreaker ? "DEGRADED" : "HEALTHY";
+
+  // Check client authorization for sensitive telemetry access
+  const authHeader = req.headers.get("authorization");
+  const customHeader = req.headers.get("x-medusa-key");
+  const token = authHeader?.replace(/^Bearer\s+/i, "") || customHeader;
+  const isAuthorized = !config.medusaApiKey || token === config.medusaApiKey;
+
+  // Unauthenticated clients receive a minimal, non-sensitive health overview
+  if (!isAuthorized) {
+    const publicPayload = {
+      glastor: "Medusa Resilient Gateway",
+      version: MEDUSA_VERSION,
+      status,
+      timestamp: new Date().toISOString(),
+      uptimeSeconds,
+      runtime: {
+        deno: Deno.version.deno,
+        isDenoDeploy: Boolean(Deno.env.get("DENO_DEPLOYMENT_ID")),
+      },
+      openCircuits: breakersMetrics.filter((b) => b.state === "OPEN").map((b) => b.name),
+      requestId,
+    };
+    return new Response(JSON.stringify(publicPayload, null, 2), {
+      status: status === "HEALTHY" ? 200 : 503,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "x-glastor-request-id": requestId,
+        "x-glastor-status": status,
+      },
+    });
+  }
+
+  // Authenticated operators receive full telemetry
+  const memory = Deno.memoryUsage ? Deno.memoryUsage() : null;
   const cacheMetrics = edgeCache.getMetrics();
   const flightMetrics = singleFlight.getMetrics();
   const prewarmMetrics = prewarmEngine.getMetrics();
   const compressionMetrics = edgeCompressor.getMetrics();
 
-  const status = hasOpenBreaker ? "DEGRADED" : "HEALTHY";
-
   const payload = {
     glastor: "Medusa Resilient Gateway",
-    version: "0.1.0",
+    version: MEDUSA_VERSION,
     status,
     timestamp: new Date().toISOString(),
     uptimeSeconds,
@@ -130,7 +171,7 @@ export function handleOpenApi(url: URL, requestId: string): Response {
     openapi: "3.1.0",
     info: {
       title: "GLASTOR® Medusa - Edge APILayer Gateway",
-      version: "0.1.0",
+      version: MEDUSA_VERSION,
       description:
         "Resilient edge caching proxy, rate limiter, and circuit breaker for APILayer services on Deno Deploy.",
       contact: {

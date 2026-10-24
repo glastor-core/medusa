@@ -49,15 +49,18 @@ export class APILayerClient {
       halfOpenMaxProbes: config.circuitBreaker.halfOpenMaxProbes,
     });
 
+    const method = (options.method || "GET").toUpperCase();
+    const isIdempotent = method === "GET" || method === "HEAD";
+
     const cacheKey = edgeCache.generateKey(service, {
       path: options.path,
       ...(options.params || {}),
     });
 
-    // 1. Check Edge Cache
+    // 1. Check Edge Cache (strictly for safe idempotent GET/HEAD)
     let staleEntry: unknown = null;
     let staleAge = 0;
-    if (!options.skipCache && (!options.method || options.method === "GET")) {
+    if (!options.skipCache && isIdempotent) {
       const cached = await edgeCache.get<T>(cacheKey);
       if (cached.status === "HIT" && cached.entry) {
         return {
@@ -106,21 +109,33 @@ export class APILayerClient {
       }
       : undefined;
 
-    // 4. Execute via Single-Flight & Circuit Breaker with Retry
+    // 4. Execute: Single-Flight deduplication applied STRICTLY to idempotent requests (GET/HEAD).
+    // Mutating methods (POST/PUT/DELETE/PATCH) must never be coalesced across concurrent clients,
+    // and must not blindly retry 5xx without idempotency guarantees.
     try {
-      const flightResult = await singleFlight.do(cacheKey, async () => {
+      const executeCall = async (): Promise<T> => {
         return await breaker.execute(async () => {
-          return await this.fetchWithRetry<T>(options);
+          return await this.fetchWithRetry<T>(options, isIdempotent ? 2 : 0);
         }, fallback);
-      });
+      };
 
-      const data = flightResult.data;
-      const shared = flightResult.shared;
+      let data: T;
+      let shared = false;
+
+      if (isIdempotent) {
+        const flightResult = await singleFlight.do(cacheKey, executeCall);
+        data = flightResult.data;
+        shared = flightResult.shared;
+      } else {
+        // Direct execution for non-idempotent methods to prevent cross-client body collision
+        data = await executeCall();
+      }
+
       const latencyMs = Math.round(performance.now() - startTime);
 
-      // Save to cache if fresh fetch (and we were the leader of the flight)
+      // Save to cache if fresh fetch, idempotent, and we were the leader of the flight
       if (
-        !options.skipCache && (!options.method || options.method === "GET") &&
+        !options.skipCache && isIdempotent &&
         data !== staleEntry && !shared
       ) {
         const ttl = options.ttlSeconds ?? config.cache.defaultTtlSeconds;
@@ -181,7 +196,7 @@ export class APILayerClient {
     const headers = new Headers(options.headers);
     headers.delete("apikey"); // Never forward client-supplied apikey
     headers.set("apikey", this.apiKey);
-    headers.set("User-Agent", "Glastor-Medusa-Gateway/0.2.0 (Deno Deploy)");
+    headers.set("User-Agent", `Glastor-Medusa-Gateway/${config.version} (Deno Deploy)`);
 
     const sanitizeUpstreamText = (text: string): string => {
       if (this.apiKey && this.apiKey.length > 5 && text.includes(this.apiKey)) {

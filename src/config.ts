@@ -3,11 +3,16 @@
  * Zero-Trust, resilient environment loader for Deno Deploy and local development.
  */
 
+export const MEDUSA_VERSION = "0.2.0";
+
 export interface MedusaConfig {
+  readonly version: string;
   readonly env: "development" | "production" | "test";
   readonly port: number;
   readonly apilayerApiKey: string;
   readonly medusaApiKey: string | null;
+  readonly authRequired: boolean;
+  readonly corsAllowedOrigins: string[];
   readonly apilayerBaseUrl: string;
   readonly circuitBreaker: {
     readonly failureThreshold: number;
@@ -32,6 +37,12 @@ export function loadConfig(): MedusaConfig {
   const port = parseInt(Deno.env.get("PORT") || "8000", 10);
   const apilayerApiKey = Deno.env.get("APILAYER_API_KEY") || "";
   const medusaApiKey = Deno.env.get("MEDUSA_API_KEY") || null;
+  const authRequired = Deno.env.get("AUTH_REQUIRED") !== undefined
+    ? Deno.env.get("AUTH_REQUIRED") === "true"
+    : env === "production";
+  const corsAllowedOrigins = Deno.env.get("CORS_ALLOWED_ORIGINS")
+    ? Deno.env.get("CORS_ALLOWED_ORIGINS")!.split(",").map((s) => s.trim()).filter(Boolean)
+    : ["*"];
   const apilayerBaseUrl = Deno.env.get("APILAYER_BASE_URL") || "https://api.apilayer.com";
 
   const failureThreshold = parseInt(Deno.env.get("CIRCUIT_BREAKER_FAILURE_THRESHOLD") || "5", 10);
@@ -45,10 +56,13 @@ export function loadConfig(): MedusaConfig {
   const staleGraceSeconds = parseInt(Deno.env.get("STALE_WHILE_REVALIDATE_SECONDS") || "3600", 10);
 
   return {
+    version: MEDUSA_VERSION,
     env,
     port,
     apilayerApiKey,
     medusaApiKey,
+    authRequired,
+    corsAllowedOrigins,
     apilayerBaseUrl,
     circuitBreaker: {
       failureThreshold,

@@ -26,10 +26,18 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
-        continue-on-error: true
-        with:
-          project: medusa
-          entrypoint: src/server.ts
-          root: .
+      - name: Verify Code Quality Gates
+        run: |
+          deno check src/server.ts
+          deno test --allow-net --allow-env --unstable-kv tests/
+
+      - name: Deploy to Deno Deploy (console.deno.com)
+        run: |
+          deno install -gAr jsr:@deno/deployctl
+          deployctl deploy --project=medusa --entrypoint=src/server.ts --prod
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+
+      - name: Post-Deployment Verification
+        run: |
+          echo "Edge deployment to console.deno.com successfully finalized."

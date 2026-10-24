@@ -5,7 +5,7 @@
 **The high-performance, resilient Edge API Gateway & Caching Proxy for APILayer on Deno Deploy.**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=for-the-badge)](LICENSE)
-[![CI Status](https://img.shields.io/badge/CI-Passing-brightgreen.svg?style=for-the-badge)](#)
+[![CI Status](https://github.com/glastor-core/medusa/actions/workflows/ci.yml/badge.svg)](https://github.com/glastor-core/medusa/actions/workflows/ci.yml)
 [![Deno](https://img.shields.io/badge/Runtime-Deno%202.x-000000?style=for-the-badge&logo=deno)](https://deno.com/)
 [![Deno Deploy](https://img.shields.io/badge/Deploy-Edge%20Native-000000?style=for-the-badge&logo=deno)](https://deno.com/deploy)
 [![DevSecOps](https://img.shields.io/badge/DevSecOps-Glastor%20Audited-purple.svg?style=for-the-badge)](https://github.com/glastor-core)
@@ -147,22 +147,26 @@ flowchart TB
 ### Option 1: Automatic GitHub Integration (Recommended)
 
 1. Push this repository to your GitHub organization (`glastor-core/medusa`).
-2. Log in to [Deno Deploy](https://dash.deno.com/) and create a **New Project**.
+2. Log in to [Deno Deploy Console](https://console.deno.com/) and create a **New Project**.
 3. Link your GitHub repository and set the entrypoint to:
    ```
    src/server.ts
    ```
 4. In Project **Settings > Environment Variables**, add:
    - `APILAYER_API_KEY`: `your_apilayer_access_key`
-   - `MEDUSA_API_KEY`: _(Optional: if you wish to restrict gateway access with a private token)_
+   - `MEDUSA_API_KEY`: `your_private_gateway_token` _(Required in production for perimeter
+     authentication)_
+   - `CORS_ALLOWED_ORIGINS`: _(Optional: comma-separated list of allowed origins, defaults to `*` in
+     dev)_
 
 ### Option 2: Deploy via GitHub Actions
 
 Use the included [deploy.yml](.github/workflows/deploy.yml) workflow:
 
 - Configure GitHub repository secret `DENO_DEPLOY_TOKEN` (from
-  [Deno Deploy Access Tokens](https://dash.deno.com/account#access-tokens)).
-- Every push to `main` automatically deploys globally across 35+ edge regions.
+  [Deno Deploy Access Tokens](https://console.deno.com/account#access-tokens)).
+- Every push to `main` automatically runs checks, tests, and deploys globally via
+  `jsr:@deno/deployctl`.
 
 ---
 
