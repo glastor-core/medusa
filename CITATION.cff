@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software in research, products or documentation, please cite it using the metadata from this file."
 title: "MEDUSA"
 type: software
-version: "1.0.0"
-date-released: "2026-01-01"
+version: "0.2.1"
+date-released: "2026-10-24"
 authors:
   - family-names: "Glastor"
     given-names: ""

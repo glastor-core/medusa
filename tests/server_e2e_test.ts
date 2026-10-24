@@ -48,27 +48,27 @@ Deno.test("Server E2E - handles /health telemetry endpoint with 200 HEALTHY", as
   assertEquals(Array.isArray(data.circuitBreakers), true);
 });
 
-Deno.test("Server E2E - serves OpenAPI 3.1 self-describing contract with synchronized version 0.2.0", async () => {
+Deno.test("Server E2E - serves OpenAPI 3.1 self-describing contract with synchronized version 0.2.1", async () => {
   const req = new Request("http://localhost:8000/openapi.json");
   const res = await handler(req);
 
   assertEquals(res.status, 200);
   const spec = await res.json();
   assertEquals(spec.openapi, "3.1.0");
-  assertEquals(spec.info.version, "0.2.0");
+  assertEquals(spec.info.version, "0.2.1");
   assertEquals(Boolean(spec.paths["/livez"]), true);
   assertEquals(Boolean(spec.paths["/readyz"]), true);
   assertEquals(Boolean(spec.paths["/v1/currency/convert"]), true);
 });
 
-Deno.test("Server E2E - serves root JSON metadata with version 0.2.0", async () => {
+Deno.test("Server E2E - serves root JSON metadata with version 0.2.1", async () => {
   const req = new Request("http://localhost:8000/");
   const res = await handler(req);
 
   assertEquals(res.status, 200);
   const data = await res.json();
   assertEquals(data.glastor, "Medusa APILayer Gateway");
-  assertEquals(data.version, "0.2.0");
+  assertEquals(data.version, "0.2.1");
   assertEquals(data.probes.liveness, "/livez");
 });
 
