@@ -27,7 +27,7 @@
 ## 🏛️ Architecture
 
 <p align="center">
-  <img src="docs/architecture.png" alt="GLASTOR® Medusa Edge Architecture" width="100%">
+  <img src="docs/architecture.svg" alt="GLASTOR® Medusa Edge Architecture" width="100%">
 </p>
 
 ---

@@ -1,0 +1,257 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 880" width="100%" height="100%"
+  style="background:#090d16; border-radius:16px;">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1424" />
+      <stop offset="100%" stop-color="#080c18" />
+    </linearGradient>
+    <linearGradient id="primaryGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+    <linearGradient id="resilienceGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+    <linearGradient id="upstreamGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+
+    <!-- Marker Arrows -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6"
+      orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b" />
+    </marker>
+    <marker id="arrow-cyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6"
+      orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6"
+      orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6"
+      orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#c084fc" />
+    </marker>
+
+    <!-- Filter for subtle drop shadow -->
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#bgGrad)" rx="16" />
+
+  <style>
+  .title {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 700;
+    fill: #f8fafc;
+    font-size: 15px;
+  }
+  .subtitle {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 400;
+    fill: #94a3b8;
+    font-size: 12px;
+  }
+  .group-header {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+  }
+  .card {
+    rx: 10px;
+    stroke-width: 1.2px;
+  }
+  .label {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  </style>
+
+  <!-- ================= 1. CLIENTS SECTION ================= -->
+  <g transform="translate(60, 30)">
+    <rect width="780" height="120" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1.5"
+      filter="url(#cardShadow)" />
+    <text x="25" y="32" class="group-header" fill="#38bdf8">🌐 Clients &amp; Applications</text>
+
+    <!-- Client 1 -->
+    <g transform="translate(35, 45)">
+      <rect width="335" height="56" class="card" fill="#1e293b" stroke="#475569" />
+      <circle cx="28" cy="28" r="14" fill="#0284c7" fill-opacity="0.2" />
+      <text x="28" y="33" text-anchor="middle" font-size="14">💻</text>
+      <text x="54" y="27" class="title">Web / Mobile / Microservices</text>
+      <text x="54" y="44" class="subtitle">REST Ingress via Bearer or x-medusa-key</text>
+    </g>
+
+    <!-- Client 2 -->
+    <g transform="translate(410, 45)">
+      <rect width="335" height="56" class="card" fill="#1e293b" stroke="#475569" />
+      <circle cx="28" cy="28" r="14" fill="#818cf8" fill-opacity="0.2" />
+      <text x="28" y="33" text-anchor="middle" font-size="14">📊</text>
+      <text x="54" y="27" class="title">Live Glassmorphic Console (/)</text>
+      <text x="54" y="44" class="subtitle">Real-time edge telemetry &amp; health checks</text>
+    </g>
+  </g>
+
+  <!-- Arrows: Clients -> Edge Ingress -->
+  <path d="M 420, 150 L 420, 195" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow-cyan)" />
+  <text x="430" y="176" class="label" fill="#38bdf8">HTTP Request</text>
+
+  <!-- Sub-ms Hit Arrow (Back to Client) -->
+  <path d="M 480, 195 L 480, 150" stroke="#10b981" stroke-width="2" stroke-dasharray="4"
+    marker-end="url(#arrow-green)" />
+  <text x="490" y="176" class="label" fill="#10b981">Sub-ms HIT</text>
+
+  <!-- ================= 2. EDGE KERNEL SECTION ================= -->
+  <g transform="translate(60, 200)">
+    <rect width="780" height="425" rx="14" fill="#0f172a" stroke="#6366f1" stroke-width="1.8"
+      filter="url(#cardShadow)" />
+    <text x="25" y="32" class="group-header"
+      fill="#a5b4fc">⚡ GLASTOR® Medusa Ingress (Deno Deploy Edge)</text>
+
+    <!-- Ingress Row: RateLimiter, Zero-Trust Auth, Edge Router -->
+    <g transform="translate(25, 50)">
+      <!-- RateLimiter -->
+      <rect x="0" y="0" width="225" height="64" class="card" fill="#1e293b" stroke="#475569" />
+      <circle cx="24" cy="32" r="13" fill="#38bdf8" fill-opacity="0.2" />
+      <text x="24" y="37" text-anchor="middle" font-size="13">🛡️</text>
+      <text x="46" y="28" class="title" font-size="13.5">Distributed RateLimiter</text>
+      <text x="46" y="45" class="subtitle">Atomic Token Bucket (Deno KV)</text>
+
+      <!-- Arrow -->
+      <path d="M 225, 32 L 250, 32" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+      <!-- Zero-Trust Auth -->
+      <rect x="255" y="0" width="225" height="64" class="card" fill="#1e293b" stroke="#475569" />
+      <circle cx="279" cy="32" r="13" fill="#a855f7" fill-opacity="0.2" />
+      <text x="279" y="37" text-anchor="middle" font-size="13">🔒</text>
+      <text x="301" y="28" class="title" font-size="13.5">Zero-Trust Perimeter Auth</text>
+      <text x="301" y="45" class="subtitle">Fail-closed token enforcement</text>
+
+      <!-- Arrow -->
+      <path d="M 480, 32 L 505, 32" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+      <!-- Edge Dispatcher -->
+      <rect x="510" y="0" width="220" height="64" class="card" fill="#1e293b" stroke="#475569" />
+      <circle cx="534" cy="32" r="13" fill="#ec4899" fill-opacity="0.2" />
+      <text x="534" y="37" text-anchor="middle" font-size="13">⚙️</text>
+      <text x="556" y="28" class="title" font-size="13.5">Edge Dispatcher</text>
+      <text x="556" y="45" class="subtitle">Single-Flight Method Router</text>
+    </g>
+
+    <!-- Arrow Down to Resilience Layer -->
+    <path d="M 645, 114 L 645, 142 L 390, 142 L 390, 160" stroke="#64748b" stroke-width="1.8"
+      fill="none" marker-end="url(#arrow)" />
+
+    <!-- Sub-container: Resilience & Caching Layer -->
+    <g transform="translate(25, 165)">
+      <rect width="470" height="235" rx="12" fill="#111c33" stroke="#8b5cf6" stroke-width="1.4" />
+      <text x="20" y="28" class="group-header"
+        fill="#c084fc">🛡️ Resilience &amp; Multi-Tier Caching Layer</text>
+
+      <!-- Stale-While-Revalidate Engine -->
+      <g transform="translate(20, 45)">
+        <rect width="205" height="70" class="card" fill="#1e293b" stroke="#6366f1" />
+        <text x="15" y="28" class="title" font-size="13">SWR Fallback Engine</text>
+        <text x="15" y="46" class="subtitle">Grace period background</text>
+        <text x="15" y="60" class="subtitle">revalidation</text>
+      </g>
+
+      <!-- Circuit Breaker -->
+      <g transform="translate(245, 45)">
+        <rect width="205" height="70" class="card" fill="#1e293b" stroke="#ec4899" />
+        <text x="15" y="28" class="title" font-size="13">Circuit Breaker</text>
+        <text x="15" y="46" class="subtitle">CLOSED / OPEN / HALF_OPEN</text>
+        <text x="15" y="60" class="subtitle">Threshold fast-failure</text>
+      </g>
+
+      <!-- Arrow SWR -> Cache -->
+      <path d="M 122, 115 L 122, 145" stroke="#a855f7" stroke-width="1.6"
+        marker-end="url(#arrow-purple)" />
+      <text x="130" y="134" class="label" fill="#c084fc">Degraded Fallback on 5xx</text>
+
+      <!-- Edge Cache (L1 + L2) -->
+      <g transform="translate(20, 150)">
+        <rect width="430" height="65" class="card" fill="#1e293b" stroke="#38bdf8" />
+        <circle cx="28" cy="32" r="14" fill="#0284c7" fill-opacity="0.2" />
+        <text x="28" y="37" text-anchor="middle" font-size="14">⚡</text>
+        <text x="52" y="27" class="title"
+          font-size="13.5">Edge Cache (L1 LRU Memory + L2 Distributed Deno KV)</text>
+        <text x="52" y="46"
+          class="subtitle">Sub-millisecond memory hits with bounded LRU eviction &amp; KV persistent sync</text>
+      </g>
+    </g>
+
+    <!-- Core 4R Observability Box -->
+    <g transform="translate(520, 165)">
+      <rect width="235" height="235" rx="12" fill="#111c33" stroke="#38bdf8" stroke-width="1.4" />
+      <text x="18" y="28" class="group-header" fill="#38bdf8">📈 Core 4R Telemetry</text>
+
+      <rect x="18" y="45" width="200" height="170" rx="8" fill="#1e293b" stroke="#334155" />
+      <text x="30" y="75" class="title" font-size="12.5" fill="#38bdf8">• Reason</text>
+      <text x="30" y="92" class="subtitle" font-size="11">Precise error root cause</text>
+
+      <text x="30" y="115" class="title" font-size="12.5" fill="#a855f7">• Recovery</text>
+      <text x="30" y="132" class="subtitle" font-size="11">Self-healing degraded mode</text>
+
+      <text x="30" y="155" class="title" font-size="12.5" fill="#10b981">• Remediation</text>
+      <text x="30" y="172" class="subtitle" font-size="11">Actionable client guidance</text>
+
+      <text x="30" y="195" class="title" font-size="12.5" fill="#f59e0b">• RequestId</text>
+      <text x="105" y="195" class="subtitle" font-size="11">UUID-v4 trace</text>
+    </g>
+  </g>
+
+  <!-- Arrow Down to Upstream -->
+  <path d="M 450, 625 L 450, 665" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow)" />
+  <text x="460" y="648" class="label" fill="#f59e0b">Cache MISS / Probing</text>
+
+  <!-- ================= 3. UPSTREAM SECTION ================= -->
+  <g transform="translate(60, 670)">
+    <rect width="780" height="150" rx="14" fill="#0f172a" stroke="#10b981" stroke-width="1.8"
+      filter="url(#cardShadow)" />
+    <text x="25" y="32" class="group-header"
+      fill="#34d399">☁️ APILayer Suite (https://api.apilayer.com/)</text>
+
+    <g transform="translate(25, 50)">
+      <!-- Service 1: Currency -->
+      <g transform="translate(0, 0)">
+        <rect width="170" height="75" class="card" fill="#1e293b" stroke="#334155" />
+        <text x="15" y="28" class="title" font-size="12.5">exchangerates_data</text>
+        <text x="15" y="46" class="subtitle" font-size="11">Live &amp; historical</text>
+        <text x="15" y="60" class="subtitle" font-size="11">currency rates</text>
+      </g>
+
+      <!-- Service 2: GeoIP -->
+      <g transform="translate(185, 0)">
+        <rect width="170" height="75" class="card" fill="#1e293b" stroke="#334155" />
+        <text x="15" y="28" class="title" font-size="12.5">ipstack</text>
+        <text x="15" y="46" class="subtitle" font-size="11">Real-time IP &amp; GEO</text>
+        <text x="15" y="60" class="subtitle" font-size="11">location lookup</text>
+      </g>
+
+      <!-- Service 3: Email -->
+      <g transform="translate(370, 0)">
+        <rect width="170" height="75" class="card" fill="#1e293b" stroke="#334155" />
+        <text x="15" y="28" class="title" font-size="12.5">mailboxlayer</text>
+        <text x="15" y="46" class="subtitle" font-size="11">Email verification,</text>
+        <text x="15" y="60" class="subtitle" font-size="11">MX check &amp; deliverability</text>
+      </g>
+
+      <!-- Service 4: Universal Proxy -->
+      <g transform="translate(555, 0)">
+        <rect width="175" height="75" class="card" fill="#1e293b" stroke="#334155" />
+        <text x="15" y="28" class="title" font-size="12.5">Universal Proxy</text>
+        <text x="15" y="46" class="subtitle" font-size="11">Any APILayer endpoint</text>
+        <text x="15" y="60" class="subtitle" font-size="11">with dynamic caching</text>
+      </g>
+    </g>
+  </g>
+</svg>
