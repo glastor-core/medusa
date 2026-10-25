@@ -26,45 +26,9 @@
 
 ## 🏛️ Architecture
 
-```mermaid
-flowchart TB
-    subgraph Clients["🌐 Clients & Applications"]
-        APP["Web / Mobile / Microservices"]
-        CONSOLE["Live Glassmorphic Edge Console (/)"]
-    end
-
-    subgraph EdgeKernel["⚡ GLASTOR® Medusa Ingress (Deno Deploy)"]
-        direction TB
-        RL["RateLimiter (Distributed Token Bucket)"]
-        AUTH["Zero-Trust Perimeter Auth (x-medusa-key)"]
-        ROUTER["Edge Kernel Dispatcher"]
-        
-        subgraph ResilienceEngine["🛡️ Resilience & Caching Layer"]
-            CB["Circuit Breaker (CLOSED / OPEN / HALF_OPEN)"]
-            CACHE["Edge Cache (L1 Memory + L2 Deno KV)"]
-            SWR["Stale-While-Revalidate Engine"]
-        end
-
-        OBS["Core 4R Observability (Reason, Recovery, Remediation, RequestId)"]
-    end
-
-    subgraph Upstream["☁️ APILayer Suite (https://apilayer.com/)"]
-        FX["exchangerates_data (Currency)"]
-        IP["ipstack (IP Geolocation)"]
-        MAIL["mailboxlayer (Email Verification)"]
-        ANY["Universal APILayer Endpoints"]
-    end
-
-    APP --> RL
-    CONSOLE --> RL
-    RL --> AUTH
-    AUTH --> ROUTER
-    ROUTER --> ResilienceEngine
-    ResilienceEngine --> OBS
-    CB -->|Cache MISS / Probe| Upstream
-    SWR -->|Degraded Fallback on Upstream 5xx| CACHE
-    ResilienceEngine -->|Sub-millisecond HIT| APP
-```
+<p align="center">
+  <img src="docs/architecture.png" alt="GLASTOR® Medusa Edge Architecture" width="100%">
+</p>
 
 ---
 
