@@ -10,16 +10,24 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   verify:
-    name: Lint, Check & Test
+    name: Lint, Check, Specter & Vortex AST
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    outputs:
+      should_run: ${{ steps.vortex.outputs.should-run }}
+      execution_mode: ${{ steps.vortex.outputs.execution-mode }}
+      matrix: ${{ steps.vortex.outputs.matrix }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -35,5 +43,46 @@ jobs:
       - name: Type Check
         run: deno check src/server.ts
 
-      - name: Run Test Suite
-        run: deno test --allow-net --allow-env --unstable-kv tests/
+      - name: Run Specter Polyglot AST API Contract & SemVer Gatekeeper
+        id: specter
+        uses: glastor-core/specter@v1
+        with:
+          head-dir: "."
+          base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD~1' }}
+          fail-on-trojan: "true"
+          output-sarif: "specter-results.sarif"
+          output-sbom: "specter-sbom.cdx.json"
+
+      - name: Run Vortex AST Predictive CI & LPT Sharding
+        id: vortex
+        uses: glastor-core/vortex@v1
+        with:
+          shards: "2"
+          base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD~1' }}
+          head-ref: "HEAD"
+
+  test:
+    name: "Test Suite (${{ matrix.shard_id }}/${{ matrix.shard_total }})"
+    needs: verify
+    if: needs.verify.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.verify.outputs.matrix) }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run Surgical Test Shard
+        shell: bash
+        env:
+          VORTEX_SHARD_FILES: ${{ matrix.test_files }}
+        run: |
+          read -r -a TEST_FILES <<< "$VORTEX_SHARD_FILES"
+          deno test --allow-net --allow-env --unstable-kv "${TEST_FILES[@]}"

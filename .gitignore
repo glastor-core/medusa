@@ -34,3 +34,12 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# GLASTOR Ecosystem Artifacts (Vortex, Specter, Nemesis)
+.vortex/
+vortex-report.json
+.specter/
+specter-report.json
+specter-results.sarif
+specter-sbom.cdx.json
+.nemesis-reports/

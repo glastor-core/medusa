@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
   security-events: write
 
 concurrency:
@@ -29,11 +30,11 @@ jobs:
           persist-credentials: false
 
       - name: Run Nemesis DevSecOps Auditor
-        uses: glastor-dev/nemesis@master
-        continue-on-error: true
+        uses: glastor-core/nemesis@v1
         with:
           diff-mode: ${{ github.event_name == 'pull_request' }}
           auto-fix: false
+          pr-suggestions: true
           scan-secrets: true
           scan-sast: true
           scan-sca: true
@@ -41,4 +42,4 @@ jobs:
           scan-licenses: true
           generate-sbom: true
           upload-sarif: true
-          fail-on-critical: false
+          fail-on-critical: true
