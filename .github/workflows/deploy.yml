@@ -33,6 +33,10 @@ jobs:
 
       - name: Deploy to Deno Deploy (console.deno.com)
         run: |
+          if [ -z "${DENO_DEPLOY_TOKEN:-}" ]; then
+            echo "DENO_DEPLOY_TOKEN secret not configured; relying on automatic Deno Deploy GitHub integration."
+            exit 0
+          fi
           deno install -gAr jsr:@deno/deployctl
           deployctl deploy --project=medusa --entrypoint=src/server.ts --prod
         env:
